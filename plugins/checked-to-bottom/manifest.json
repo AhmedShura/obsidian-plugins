@@ -1,0 +1,9 @@
+{
+  "id": "checked-to-bottom",
+  "name": "Checked to Bottom",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Move checked tasks to the bottom of their list while editing.",
+  "author": "Ahmed Elshoura",
+  "isDesktopOnly": true
+}
