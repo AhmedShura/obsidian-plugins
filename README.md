@@ -19,8 +19,8 @@ Starting with v0.1.1, opening a note for editing groups unchecked tasks above ch
 If your AI assistant has access to your local files, copy this prompt into it.
 
 ```text
-Install Checked to Bottom v0.1.0 in my Obsidian desktop vault. Use this release ZIP:
-https://github.com/AhmedShura/obsidian-plugins/releases/download/checked-to-bottom-v0.1.0/checked-to-bottom-0.1.0.zip
+Install Checked to Bottom v0.1.1 in my Obsidian desktop vault. Use this release ZIP:
+https://github.com/AhmedShura/obsidian-plugins/releases/download/checked-to-bottom-v0.1.1/checked-to-bottom-0.1.1.zip
 
 If I haven't named a vault and there are several, ask which one to use.
 Extract the checked-to-bottom folder into the plugins folder inside that vault's
@@ -34,7 +34,7 @@ tell me which step to complete in Obsidian.
 
 ### Install manually on desktop
 
-1. Download [Checked to Bottom v0.1.0](https://github.com/AhmedShura/obsidian-plugins/releases/download/checked-to-bottom-v0.1.0/checked-to-bottom-0.1.0.zip).
+1. Download [Checked to Bottom v0.1.1](https://github.com/AhmedShura/obsidian-plugins/releases/download/checked-to-bottom-v0.1.1/checked-to-bottom-0.1.1.zip).
 2. Unzip it and copy the `checked-to-bottom` folder into your vault’s `.obsidian/plugins/` folder. Create `plugins` if it’s missing. If you use a custom configuration folder, use its `plugins/` folder.
 3. Restart Obsidian. In **Settings → Community plugins**, turn on community plugins if needed, then enable **Checked to Bottom**.
 
