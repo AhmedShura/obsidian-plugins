@@ -6,7 +6,9 @@ A collection of personal Obsidian plugins.
 
 Keep unfinished tasks at the top of your Markdown checklists. When you check off a task in Live Preview, it moves below the unchecked tasks in the same list. Uncheck it to move it back above the completed tasks.
 
-Nested tasks and attached text move with their parent. Use the **Completed** row to collapse or expand finished tasks without removing them from your note. Opening a note keeps its existing task order.
+Nested tasks and attached text move with their parent. Use the **Completed** row to collapse or expand finished tasks without removing them from your note.
+
+Starting with v0.1.1, opening a note for editing groups unchecked tasks above checked tasks within each checklist and saves the new order. Use Undo to restore the previous order.
 
 | After checking **Draft the agenda** | After clicking **Completed · 2** |
 | --- | --- |

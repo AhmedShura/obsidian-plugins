@@ -1,4 +1,4 @@
-import {EditorSelection, EditorState, Transaction} from '@codemirror/state';
+import {EditorSelection, EditorState, Text, Transaction} from '@codemirror/state';
 import {ViewPlugin, type EditorView} from '@codemirror/view';
 
 // Obsidian's Live Preview checkbox widget dispatches without a userEvent.
@@ -71,6 +71,71 @@ export function itemsIn(text: string): {lines: string[]; items: Item[]} {
   return {lines, items};
 }
 
+// A sibling can follow a task only at the end of its entire block.
+function checklistGroups(items: Item[]): Item[][] {
+  const groups: Item[][] = [];
+  const byEnd = new Map<string, Item[]>();
+  for (const item of items) {
+    const key = `${item.indent}:${item.start}`;
+    let group = byEnd.get(key);
+    if (group) {
+      byEnd.delete(key);
+    } else {
+      group = [];
+      groups.push(group);
+    }
+    group.push(item);
+    byEnd.set(`${item.indent}:${item.end}`, group);
+  }
+  return groups;
+}
+
+function reorderChecklists(doc: Text, selection: EditorSelection, lines: string[],
+                           groups: Item[][], toggled?: Item) {
+  const changed = groups.flatMap(group => {
+    const rest = group.filter(item => item !== toggled);
+    const unchecked = rest.filter(item => !item.done);
+    const checked = rest.filter(item => item.done);
+    // A toggled task goes at the boundary, regardless of its new status.
+    const ordered = toggled ? [...unchecked, toggled, ...checked] : [...unchecked, ...checked];
+    if (group.every((item, index) => item === ordered[index])) return [];
+    return [{start: group[0].start, end: group[group.length - 1].end, ordered}];
+  });
+  if (!changed.length) return;
+
+  const lineOrder = lines.map((_, index) => index);
+  // Apply inner permutations first so moving a parent carries the reordered children.
+  for (const {start, ordered} of [...changed].reverse()) {
+    const block = ordered.flatMap(item => lineOrder.slice(item.start, item.end));
+    for (let index = 0; index < block.length; index++) lineOrder[start + index] = block[index];
+  }
+
+  const sortedLines = lineOrder.map(index => lines[index]);
+  const sortedDoc = Text.of(sortedLines);
+  const destination: number[] = [];
+  lineOrder.forEach((original, index) => { destination[original] = index; });
+  const map = (position: number) => {
+    const line = doc.lineAt(position);
+    return sortedDoc.line(destination[line.number - 1] + 1).from + position - line.from;
+  };
+  // An outer replacement already includes every nested replacement in its range.
+  let replacedThrough = 0;
+  const changes = changed.flatMap(({start, end}) => {
+    if (start < replacedThrough) return [];
+    replacedThrough = end;
+    return [{from: doc.line(start + 1).from, to: doc.line(end).to,
+      insert: sortedLines.slice(start, end).join('\n')}];
+  });
+  return {changes, selection: EditorSelection.create(selection.ranges.map(range =>
+    range.empty ? EditorSelection.cursor(map(range.head), range.assoc) :
+      EditorSelection.range(map(range.anchor), map(range.head))), selection.mainIndex)};
+}
+
+export function normalizeChecklists(state: EditorState) {
+  const {lines, items} = itemsIn(state.doc.toString());
+  return reorderChecklists(state.doc, state.selection, lines, checklistGroups(items));
+}
+
 export const sortTransactions = EditorState.transactionFilter.of(tr => {
   if (!tr.docChanged || tr.isUserEvent('undo') || tr.isUserEvent('redo') ||
       tr.annotation(Transaction.remote) ||
@@ -94,39 +159,9 @@ export const sortTransactions = EditorState.transactionFilter.of(tr => {
   const changedLine = tr.newDoc.lineAt(position);
   const moved = items.find(item => item.start === changedLine.number - 1 && changedLine.from + item.status === position);
   if (!moved) return tr;
-  let first = moved, last = moved;
-  while (true) {
-    const previous = items.find(item => item.end === first.start && item.indent === moved.indent);
-    if (!previous) break;
-    first = previous;
-  }
-  while (true) {
-    const next = items.find(item => item.start === last.end && item.indent === moved.indent);
-    if (!next) break;
-    last = next;
-  }
-  const group = items.filter(item => item.indent === moved.indent && item.start >= first.start && item.start <= last.start);
-  const reordered = group.filter(item => item !== moved);
-  const completed = reordered.findIndex(item => item.done);
-  reordered.splice(completed === -1 ? reordered.length : completed, 0, moved);
-  if (group.every((item, i) => item === reordered[i])) return tr;
-  const from = tr.newDoc.line(first.start + 1).from;
-  const to = tr.newDoc.line(last.end).to;
-  let offset = from;
-  const segments = reordered.map(item => {
-    const content = lines.slice(item.start, item.end).join('\n');
-    const oldFrom = tr.newDoc.line(item.start + 1).from;
-    const segment = {oldFrom, oldTo: oldFrom + content.length, newFrom: offset, content};
-    offset += content.length + 1;
-    return segment;
-  });
-  const map = (pos: number) => {
-    const segment = segments.find(s => pos >= s.oldFrom && pos <= s.oldTo);
-    return segment ? segment.newFrom + pos - segment.oldFrom : pos;
-  };
-  const selection = EditorSelection.create(tr.newSelection.ranges.map(range =>
-    EditorSelection.range(map(range.anchor), map(range.head))), tr.newSelection.mainIndex);
-  return [tr, {changes: {from, to, insert: segments.map(s => s.content).join('\n')}, selection, sequential: true}];
+  const group = checklistGroups(items).find(group => group.includes(moved))!;
+  const change = reorderChecklists(tr.newDoc, tr.newSelection, lines, [group], moved);
+  return change ? [tr, {...change, sequential: true}] : tr;
 });
 
 export const checkedToBottom = [checkboxInput, sortTransactions];

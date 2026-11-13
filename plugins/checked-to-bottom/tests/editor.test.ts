@@ -100,7 +100,7 @@ test('unlabelled reloads, paste and remote edits never sort', () => {
   assert.equal(e.text(), '- [x] Alpha\n- [ ] Beta');
 });
 
-test('ordinary typing, opening unsorted notes and custom status changes never sort', () => {
+test('the checkbox filter ignores ordinary typing and custom status changes', () => {
   const e = editor('- [x] Alpha\n- [ ] Beta');
   assert.equal(e.text(), '- [x] Alpha\n- [ ] Beta');
   e.dispatch(e.state.update({changes:{from:6,to:7,insert:'a'},userEvent:'input.type'}));
@@ -115,4 +115,15 @@ test('uppercase, alternate bullets, tabs and EOF supported', () => {
   assert.equal(e.text(), '* [ ] Parent\n\t+ [x] Child B\n\t+ [X] Child A\n* [ ] Next\n');
   e.toggle('Child A');
   assert.equal(e.text(), '* [ ] Parent\n\t+ [ ] Child A\n\t+ [x] Child B\n* [ ] Next\n');
+});
+
+test('a checkbox toggle groups the whole affected list and puts the toggled task at the boundary', () => {
+  const original = '- [x] Done A\n- [ ] Open A\n- [x] Done B\n- [ ] Open B\n\n- [x] Separate\n- [ ] List';
+  const e = editor(original);
+  e.toggle('Open A');
+  assert.equal(e.text(), '- [ ] Open B\n- [x] Open A\n- [x] Done A\n- [x] Done B\n\n- [x] Separate\n- [ ] List');
+  assert.equal(undo(e as any), true);
+  assert.equal(e.text(), original);
+  e.toggle('Done A');
+  assert.equal(e.text(), '- [ ] Open A\n- [ ] Open B\n- [ ] Done A\n- [x] Done B\n\n- [x] Separate\n- [ ] List');
 });
