@@ -19,14 +19,14 @@ function editor(doc: string) {
   };
 }
 
-test('newly completed tasks lead completed section; unchecking returns above completed', () => {
+test('completed and reopened tasks go first in their destination sections', () => {
   const e = editor('- [ ] Alpha\n- [ ] Beta\n- [x] Done');
   e.toggle('Alpha');
   assert.equal(e.text(), '- [ ] Beta\n- [x] Alpha\n- [x] Done');
   assert.equal(e.state.selection.main.head, e.state.doc.line(2).to);
   e.toggle('Alpha');
-  assert.equal(e.text(), '- [ ] Beta\n- [ ] Alpha\n- [x] Done');
-  assert.equal(e.state.selection.main.head, e.state.doc.line(2).to);
+  assert.equal(e.text(), '- [ ] Alpha\n- [ ] Beta\n- [x] Done');
+  assert.equal(e.state.selection.main.head, e.state.doc.line(1).to);
 });
 
 test('single Undo and Redo restore both status and order without re-sorting', () => {
@@ -117,7 +117,7 @@ test('uppercase, alternate bullets, tabs and EOF supported', () => {
   assert.equal(e.text(), '* [ ] Parent\n\t+ [ ] Child A\n\t+ [x] Child B\n* [ ] Next\n');
 });
 
-test('a checkbox toggle groups the whole affected list and puts the toggled task at the boundary', () => {
+test('a checkbox toggle groups only the affected list and puts the toggled task first in its section', () => {
   const original = '- [x] Done A\n- [ ] Open A\n- [x] Done B\n- [ ] Open B\n\n- [x] Separate\n- [ ] List';
   const e = editor(original);
   e.toggle('Open A');
@@ -125,5 +125,5 @@ test('a checkbox toggle groups the whole affected list and puts the toggled task
   assert.equal(undo(e as any), true);
   assert.equal(e.text(), original);
   e.toggle('Done A');
-  assert.equal(e.text(), '- [ ] Open A\n- [ ] Open B\n- [ ] Done A\n- [x] Done B\n\n- [x] Separate\n- [ ] List');
+  assert.equal(e.text(), '- [ ] Done A\n- [ ] Open A\n- [ ] Open B\n- [x] Done B\n\n- [x] Separate\n- [ ] List');
 });

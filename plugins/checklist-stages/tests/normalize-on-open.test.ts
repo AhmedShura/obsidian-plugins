@@ -5,7 +5,7 @@ import {history, redo, undo, undoDepth} from '@codemirror/commands';
 import {EditorState, StateEffect, Transaction} from '@codemirror/state';
 import {EditorView} from '@codemirror/view';
 import {JSDOM} from 'jsdom';
-import {completedSections} from '../src/sections';
+import {taskSections} from '../src/sections';
 import {normalizeOnOpen} from '../src/normalize-on-open';
 
 test('normalizes mixed lists on enable and note switch, in one undoable edit', async () => {
@@ -18,19 +18,19 @@ test('normalizes mixed lists on enable and note switch, in one undoable edit', a
 
   const fencedExample = '~~~md\n- [x] Example\n- [ ] Example two\n~~~\n';
   const first = [
-    '- [x] Parent', '  Attached text', '  - [X] Finished child', '  - [ ] Open child',
-    '- [ ] Open A', '- [x] Done B', '- [ ] Open B', '- [x] Done C',
+    '- [x] Parent', '  Attached text', '  - [X] Finished child', '  - [ ] Open child', '  - [/] Active child',
+    '- [ ] Open A', '- [x] Done B', '- [/] Active A', '- [ ] Open B', '- [x] Done C', '- [/] Active B',
     '', '# Separate', '- [x] Separate done', '- [ ] Separate open', '', fencedExample,
   ].join('\n');
   const expected = [
-    '- [ ] Open A', '- [ ] Open B', '- [x] Parent', '  Attached text',
-    '  - [ ] Open child', '  - [X] Finished child', '- [x] Done B', '- [x] Done C',
+    '- [/] Active A', '- [/] Active B', '- [ ] Open A', '- [ ] Open B', '- [x] Parent', '  Attached text',
+    '  - [/] Active child', '  - [ ] Open child', '  - [X] Finished child', '- [x] Done B', '- [x] Done C',
     '', '# Separate', '- [ ] Separate open', '- [x] Separate done', '', fencedExample,
   ].join('\n');
   const child = first.indexOf('Open child');
   const view = new EditorView({parent: dom.window.document.body, state: EditorState.create({
     doc: first, selection: {anchor: child + 4, head: child},
-    extensions: [history(), completedSections],
+    extensions: [history(), taskSections],
   })});
   let file = {};
   const extension = normalizeOnOpen(() => file);
@@ -43,7 +43,8 @@ test('normalizes mixed lists on enable and note switch, in one undoable edit', a
     assert.equal(view.state.selection.main.anchor, moved + 4);
     assert.equal(view.state.selection.main.head, moved);
     assert.equal(undoDepth(view.state), 1);
-    const headers = [...view.dom.querySelectorAll('.ctb-completed-toggle')].map(el => el.textContent);
+    const headers = [...view.dom.querySelectorAll('.ctb-task-section-toggle')].map(el => el.textContent);
+    assert.equal(headers.filter(text => text?.endsWith('In progress · 2')).length, 1);
     assert.equal(headers.filter(text => text?.endsWith('Completed · 3')).length, 1);
 
     assert.equal(undo(view), true);

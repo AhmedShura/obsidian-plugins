@@ -1,0 +1,9 @@
+{
+  "id": "checklist-stages",
+  "name": "Checklist Stages",
+  "version": "0.2.0",
+  "minAppVersion": "1.5.0",
+  "description": "Cycle tasks through New, In progress, and Completed, and automatically group checklists by stage.",
+  "author": "Ahmed Elshoura",
+  "isDesktopOnly": true
+}

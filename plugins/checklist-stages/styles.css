@@ -1,0 +1,49 @@
+.ctb-task-section {
+  box-sizing: border-box;
+  padding-block: 3px;
+}
+.ctb-task-section .ctb-task-section-toggle {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: auto;
+  padding: 3px 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: var(--font-ui-smaller, 12px);
+  cursor: pointer;
+}
+.ctb-task-section .ctb-task-section-toggle:hover {
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+.ctb-task-section .ctb-task-section-toggle:focus-visible {
+  outline: 1px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+.ctb-task-section-arrow { width: 1em; text-align: center; }
+.ctb-task-section-line {
+  flex: 1;
+  min-width: 1em;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.markdown-source-view.mod-cm6 input.task-list-item-checkbox[data-task="/"]:checked {
+  background-color: transparent;
+  border-color: var(--interactive-accent);
+}
+.markdown-source-view.mod-cm6 input.task-list-item-checkbox[data-task="/"]:checked::after {
+  background-color: var(--interactive-accent);
+  mask-image: none;
+  clip-path: polygon(25% 67%, 67% 25%, 75% 33%, 33% 75%);
+}
+.markdown-source-view.mod-cm6 .HyperMD-task-line[data-task="/"] {
+  text-decoration: none;
+}

@@ -4,8 +4,8 @@ import {JSDOM} from 'jsdom';
 import {EditorState, StateField} from '@codemirror/state';
 import {Decoration, EditorView, WidgetType} from '@codemirror/view';
 import {history, undo, redo} from '@codemirror/commands';
-import {checkedToBottom} from '../src/sort';
-import {completedSections} from '../src/sections';
+import {taskStateExtension} from '../src/sort';
+import {taskSections} from '../src/sections';
 
 // Obsidian 1.15 Live Preview contract: equality is by status; native input
 // edits the Markdown; updateDOM only reconciles widgets whose status changed.
@@ -35,7 +35,7 @@ class TaskCheckbox extends WidgetType {
 const widgets = (state: EditorState) => {
   const result = [];
   for (let i = 1; i <= state.doc.lines; i++) {
-    const line = state.doc.line(i), match = /^\s*- \[([ xX])\]/.exec(line.text);
+    const line = state.doc.line(i), match = /^\s*- \[([ /xX])\]/.exec(line.text);
     if (match) result.push(Decoration.replace({widget: new TaskCheckbox(match[1])}).range(line.from, line.from + match[0].length));
   }
   return Decoration.set(result);
@@ -45,31 +45,50 @@ const livePreview = StateField.define({create: widgets,
   provide: field => EditorView.decorations.from(field)});
 
 for (const accordion of [false, true]) {
-  test(`native checkbox click preserves sibling display (accordion ${accordion})`, () => {
+  test(`native checkbox cycles, sorts, and renders through undo and redo (accordion ${accordion})`, () => {
     const dom = new JSDOM('<!doctype html><body></body>', {pretendToBeVisual: true});
     const names = ['window', 'document', 'MutationObserver', 'HTMLElement', 'Node', 'Window', 'getComputedStyle'];
     const originals = names.map(name => Object.getOwnPropertyDescriptor(globalThis, name));
     for (const name of names) Object.defineProperty(globalThis, name, {configurable: true, value: (dom.window as any)[name]});
-    const original = '- [ ] First task\n- [ ] Second task\n- [x] Older task';
+    const original = '- [/] Active task\n- [ ] Second task\n- [ ] First task\n- [x] Older task';
+    const started = '- [/] First task\n- [/] Active task\n- [ ] Second task\n- [x] Older task';
+    const completed = '- [/] Active task\n- [ ] Second task\n- [x] First task\n- [x] Older task';
+    const reopened = '- [/] Active task\n- [ ] First task\n- [ ] Second task\n- [x] Older task';
     const view = new EditorView({parent: dom.window.document.body,
-      state: EditorState.create({doc: original, extensions: [history(), livePreview, checkedToBottom, accordion ? completedSections : []]})});
+      state: EditorState.create({doc: original, extensions: [history(), livePreview, taskStateExtension, accordion ? taskSections : []]})});
     const checkboxes = () => [...view.dom.querySelectorAll<HTMLInputElement>('input.task-list-item-checkbox')];
-    const verify = () => {
-      const statuses = view.state.doc.toString().split('\n').map(line => line.includes('[x]'));
-      assert.deepEqual(checkboxes().map(input => input.checked), statuses, 'visible checkboxes must match Markdown');
+    const verify = (expected: string) => {
+      assert.equal(view.state.doc.toString(), expected);
+      const markers = expected.split('\n').map(line => line[3]);
+      assert.deepEqual(checkboxes().map(input => input.dataset.task), markers);
+      assert.deepEqual(checkboxes().map(input => input.checked), markers.map(marker => marker !== ' '));
     };
     try {
-      checkboxes()[0].click();
-      assert.equal(view.state.doc.toString(), '- [ ] Second task\n- [x] First task\n- [x] Older task');
-      verify();
-      undo(view); assert.equal(view.state.doc.toString(), original); verify();
-      redo(view); verify();
-      checkboxes()[0].click();
-      assert.equal(view.state.doc.toString(), '- [x] Second task\n- [x] First task\n- [x] Older task');
-      verify();
+      if (accordion) {
+        const headers = () => [...view.dom.querySelectorAll<HTMLButtonElement>('.ctb-task-section-toggle')];
+        assert.deepEqual(headers().map(button => button.querySelector('span:nth-child(2)')?.textContent),
+          ['In progress · 1', 'New · 2', 'Completed · 1']);
+        headers()[1].click();
+        assert.deepEqual(headers().map(button => button.getAttribute('aria-expanded')), ['true', 'false', 'true']);
+        assert.deepEqual(checkboxes().map(input => input.dataset.task), ['/', 'x']);
+        headers()[1].click();
+        verify(original);
+      }
       checkboxes()[2].click();
-      assert.equal(view.state.doc.toString(), '- [ ] Older task\n- [x] Second task\n- [x] First task');
-      verify();
+      verify(started);
+      checkboxes()[0].click();
+      verify(completed);
+      checkboxes()[2].click();
+      verify(reopened);
+      for (const expected of [completed, started, original]) {
+        assert.equal(undo(view), true);
+        verify(expected);
+      }
+      assert.equal(undo(view), false);
+      for (const expected of [started, completed, reopened]) {
+        assert.equal(redo(view), true);
+        verify(expected);
+      }
     } finally {
       view.destroy(); dom.window.close();
       names.forEach((name, i) => originals[i] ? Object.defineProperty(globalThis, name, originals[i]!) : delete (globalThis as any)[name]);
