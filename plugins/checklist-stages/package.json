@@ -1,6 +1,6 @@
 {
-  "name": "checked-to-bottom",
-  "version": "0.1.1",
+  "name": "checklist-stages",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "build": "tsc --noEmit && node build.mjs",
